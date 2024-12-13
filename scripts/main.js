@@ -10,6 +10,7 @@ let view;
 let cvs;
 let gfx;
 
+
 let frameCounterElement;
 let globalAlpha  = 255;
 let pause = false;
