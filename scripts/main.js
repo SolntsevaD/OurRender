@@ -52,7 +52,7 @@ function run(time) {
     requestAnimationFrame(run);
 }
 function update(delta) {
-    for (let i = 0; index < screen.pixels.length; i++) {
+    for (let i = 0; i < screen.pixels.length; i++) {
         screen.pixels[i] = Math.random() * 0xffffff;
     }
     frameTime.innerHTML = Math.floor(1000.0 / delta) + "fps";
