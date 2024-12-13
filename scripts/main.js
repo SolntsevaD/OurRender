@@ -158,6 +158,7 @@ function init()
     cvs.setAttribute("width", WIDTH + "px");
     cvs.setAttribute("height", HEIGHT + "px");
     gfx = cvs.getContext("2d");
+    gfx.font = "48px verdana";
     window.addEventListener('mousedown', (e) => {
         if (e.button != 0) return;
         mouse.down = true;
@@ -221,6 +222,9 @@ function run() {
                 timer = 0;
                 frameCounter = 0;
             }
+        }
+        else {
+            gfx.fillText("PAUSE", 4, 40);
         }
         passedTime -= msPerFrame;
     }
