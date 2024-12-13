@@ -4,19 +4,39 @@ let SCALE = 4;
 let previousTime = 0;
 let passedTime = 0;
 let msPerFrame = 1000.0 / 60.0;
-let screen;
+let timer = 0;
+let frameCounter = 0;
+let view;
 let cvs;
 let gfx;
 
-let frameTime;
-let a = 255;
+let frameCounterElement;
+let globalAlpha  = 255;
 let pause = false;
+let time = 0;
 class Bitmap {
     constructor(width, height) {
         this.width = width;
         this.height = height;
         this.pixels = new Uint32Array(width * height);
     }
+    render(bitmap, ox, oy) {
+        for (let y = 0; y < bitmap.height; y++)
+        {
+            let yy = oy + y;
+            if (yy < 0 || yy >= this.height)
+                continue;
+            for (let x = 0; x < bitmap.width; x++)
+            {
+                let xx = ox + x;
+                if (xx < 0 || xx >= this.width)
+                    continue;
+                this.pixels[xx + yy * this.width] = bitmap[x + y * bitmap.width];
+            }
+        }
+    }
+}
+class View extends Bitmap {
 }
 function start() {
     init();
@@ -28,23 +48,20 @@ function init()
     cvs.setAttribute("width", WIDTH + "px");
     cvs.setAttribute("height", HEIGHT + "px");
     gfx = cvs.getContext("2d");
-    cvs.addEventListener('mouseover', function() {
-        pause = false;
-      }, false);
-      cvs.addEventListener("mouseout", function () {
-          pause = true;
+    window.addEventListener('click', function() {
+        pause = !pause;
       }, false);
 
-    frameTime = document.getElementById("frame");
+      frameCounterElement = document.getElementById("frame_counter");
     WIDTH = WIDTH / SCALE;
     HEIGHT = HEIGHT / SCALE;
     previousTime = new Date().getTime();
-    screen = new Bitmap(WIDTH, HEIGHT);
+    view = new View(WIDTH, HEIGHT);
     for (let i = 0; i < WIDTH * HEIGHT; i++) {
-        screen.pixels[i] = Math.random() * 0xffffff;
+        view.pixels[i] = Math.random() * 0xffffff;
     }
 }
-function run(time) {
+function run() {
     let currentTime = new Date().getTime();
     passedTime += currentTime - previousTime;
     previousTime = currentTime;
@@ -52,19 +69,28 @@ function run(time) {
         if (!pause) {
         update(passedTime);
         render();
+        time += passedTime / 1000.0;
+        timer += passedTime;
+        frameCounter++;
+        if (timer >= 1000) {
+            frameCounterElement.innerHTML = frameCounter + "fps";
+            timer = 0;
+            frameCounter = 0;
+        }
         }
         passedTime -= msPerFrame;
     }
     requestAnimationFrame(run);
 }
 function update(delta) {
-    for (let i = 0; i < screen.pixels.length; i++) {
-        screen.pixels[i] = Math.random() * 0xffffff;
+    for (let i = 0; i < view.pixels.length; i++) {
+        view.pixels[i] = Math.random() * 0xffffff;
     }
-    frameTime.innerHTML = Math.floor(1000.0 / delta) + "fps";
 }
 function render() {  
-    gfx.putImageData(convert(screen, SCALE), 0, 0);
+    let b = new Bitmap(10, 10);
+    view.render(b, Math.floor(time * 10.0), 10);
+    gfx.putImageData(convert(view, SCALE), 0, 0);
 }
 function convert(bitmap, scale){
     let res = new ImageData(bitmap.width * scale, bitmap.height * scale);
@@ -84,11 +110,14 @@ function convert(bitmap, scale){
                     res.data[ptr] = r;
                     res.data[ptr + 1] = g;
                     res.data[ptr + 2] = b;
-                    res.data[ptr + 3] = a;
+                    res.data[ptr + 3] = globalAlpha;
                 }
             }
         }
     }
     return res;
 }
+function int(a) {
+    return Math.floor(a);
+  }
 window.onload = start;
