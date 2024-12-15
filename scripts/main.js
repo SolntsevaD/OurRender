@@ -6,7 +6,8 @@ const spriteSheetSize = 512;
 let textures =
 {
     pepe: ["imgs/pepe.png", 512, 512],
-    dulri: ["imgs/dulri.png", 256, 256]
+    dulri: ["imgs/dulri.png", 256, 256],
+    skybox: ["imgs/skybox.png", 256, 256],
 };
 
 const resourceReady = Object.keys(textures).length;
@@ -33,6 +34,10 @@ let view;
 const FOV = HEIGHT / SCALE;
 const zClipNear = 0.2;
 let backFaceCulling = false;
+const RENDER_CW = 0;
+const RENDER_CCW = 1;
+const SET_Z_9999 = 0x10
+let renderFlag = 0;
 let keys = {};
 let mouse = { down: false, lastX: 0.0, lastY: 0.0, currX: 0.0, currY: 0.0, dx: 0.0, dy: 0.0 };
 let player;
@@ -325,9 +330,11 @@ class View extends Bitmap {
             if (i % 2 == 0) tex = textures.pepe;
             else tex = textures.dulri;
             const pos = new Vector3(r.nextFloat() * s - s / 2.0, r.nextFloat() * s - s / 2.0, r.nextFloat() * s - s / 2.0);
-            this.drawCube(matrix.mulVector(pos), new Vector3(1, 1, 1), tex, true);
+            this.drawCube(matrix.mulVector(pos), new Vector3(1, 1, 1), tex, false, true);
+
+            this.drawSkyBox(textures.skybox);
         }
-        this.drawPoint(new Vertex(new Vector3(0, 0, -1), 0xff00ff));
+        
     }
     drawPoint(v) {
         v.pos = this.playerTransform(v.pos);
@@ -427,6 +434,14 @@ class View extends Bitmap {
     }
     drawTriangle(v0, v1, v2, tex) {
         if (tex == undefined) tex = textures.sample0;
+
+        if ((renderFlag & 0xf) == 1)
+            {
+                const tmp = v0;
+                v0 = v1;
+                v1 = tmp;
+            }
+
         v0.pos = this.playerTransform(v0.pos);
         v1.pos = this.playerTransform(v1.pos);
         v2.pos = this.playerTransform(v2.pos);
@@ -492,6 +507,14 @@ class View extends Bitmap {
         const area = v10.cross(v20);
         // Culling back faces
         if (area < 0) return;
+
+        let depthMin = 0;
+        
+        if (((renderFlag >> 4) & 0xf) == 1)
+        {
+            depthMin = 9999;
+        }
+
         for (let y = minY; y < maxY; y++)
         {
             for (let x = minX; x < maxX; x++)
@@ -516,7 +539,7 @@ class View extends Bitmap {
                     if (ty < 0) ty = 0;
                     if (ty >= tex.height) ty = tex.height - 1;
                     const c = tex.pixels[tx + ty * tex.width];
-                    this.renderPixel(new Vector3(x, y, z), c);
+                    this.renderPixel(new Vector3(x, y, z + depthMin), c);
                 }
             }
         }
@@ -526,8 +549,8 @@ class View extends Bitmap {
     }
     drawCube(pos, size, tex, centered)
     {
-        if (centered == true)
-            pos = pos.sub(new Vector3(size.x / 2.0, size.y / 2.0, -size.z / 2.0));
+        if (centered == true) pos = pos.sub(new Vector3(size.x / 2.0, size.y / 2.0, -size.z / 2.0));
+
         const p000 = new Vector3(pos.x, pos.y, pos.z);
         const p100 = new Vector3(pos.x + size.x, pos.y, pos.z);
         const p110 = new Vector3(pos.x + size.x, pos.y + size.y, pos.z);
@@ -552,6 +575,13 @@ class View extends Bitmap {
         this.drawTriangle(new Vertex(p010, 0xffffff, t01), new Vertex(p111, 0xffffff, t10), new Vertex(p110, 0xffffff, t11), tex);
         this.drawTriangle(new Vertex(p100, 0xffffff, t01), new Vertex(p101, 0xffffff, t00), new Vertex(p001, 0xffffff, t10), tex);
         this.drawTriangle(new Vertex(p100, 0xffffff, t01), new Vertex(p001, 0xffffff, t10), new Vertex(p000, 0xffffff, t11), tex);
+    }
+
+    drawSkyBox(tex)
+    {
+        renderFlag = SET_Z_9999 | RENDER_CCW;
+        this.drawCube(player.pos, new Vector3(1, 1, 1), tex, true);
+        renderFlag = 0;
     }
 
     playerTransform(pos) {
@@ -584,8 +614,9 @@ function init() {
         if (Object.hasOwnProperty.call(textures, key))
             {
                 const imageURL = textures[key][0];
-                const imageWidth = textures[key][1];
-                const imageHeight = textures[key][2];
+                const imageWidth = textures[key][1][0];
+                const imageHeight = textures[key][1][1];
+
                 let image = new Image();
                 image.src = imageURL;
                 image.crossOrigin = "Anonymous";
