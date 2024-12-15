@@ -13,6 +13,11 @@ let textures =
     skybox: ["imgs/skybox2.png", [1024, 768]]
 };
 
+let models = 
+{
+    cube: ["models/", "pepe"]
+}
+
 const resourceReady = Object.keys(textures).length;;
 let loadedResources = 0;
 
@@ -293,6 +298,24 @@ class Vertex
         else this.texCoord = texCoord;
 
         this.normal = normal;
+    }
+}
+
+class Model
+{
+    constructor(path, texture)
+    {
+        let xhr = new XMLHttpRequest();
+        xhr.open("get", path, true);
+        xhr.send(null);
+        xhr.onreadystatechange = function ()
+        {
+            if (xhr.readyState == 4 && xhr.status == 200)
+            {
+                const lines = xhr.response.split('\n');
+                console.log(lines.length);
+            }
+        }
     }
 }
 
@@ -710,7 +733,7 @@ class View extends Bitmap
         }
     }
 
-    drawIndex(vertices, indices)
+    drawIndex(positions, normals, texCoords, indices)
     {
     }
 
@@ -1045,11 +1068,11 @@ function convertBitmapToImageData(bitmap, scale)
             const g = (bitmapPixel >> 8) & 0xff;
             const b = bitmapPixel & 0xff;
 
-            for (let ys = 0; ys < SCALE; ys++)
+            for (let ys = 0; ys < scale; ys++)
             {
-                for (let xs = 0; xs < SCALE; xs++)
+                for (let xs = 0; xs < scale; xs++)
                 {
-                    const ptr = ((x * SCALE) + xs + ((y * SCALE) + ys) * res.width) * 4;
+                    const ptr = ((x * scale) + xs + ((y * scale) + ys) * res.width) * 4;
 
                     res.data[ptr] = r;
                     res.data[ptr + 1] = g;
@@ -1133,3 +1156,13 @@ function mulColor(c, v)
 }
 
 window.onload = start;
+
+for (const key in models)
+    {
+        if (Object.hasOwnProperty.call(models, key))
+        {
+            const modelURL = models[key][0];
+            const textureName = models[key][1];
+            models[key] = new Model(modelURL, textureName);
+        }
+    }
