@@ -3,9 +3,13 @@ let HEIGHT = WIDTH / 4 * 3;
 let SCALE = 4;
 
 const spriteSheetSize = 512;
-let pepe;
+let textures =
+{
+    pepe: ["imgs/pepe.png", 512, 512],
+    dulri: ["imgs/dulri.png", 256, 256]
+};
 
-const resourceReady = 1;
+const resourceReady = Object.keys(textures).length;
 let loadedResources = 0;
 
 
@@ -29,8 +33,6 @@ let view;
 const FOV = HEIGHT / SCALE;
 const zClipNear = 0.2;
 let backFaceCulling = false;
-let defaultTex0;
-let defaultTex1;
 let keys = {};
 let mouse = { down: false, lastX: 0.0, lastY: 0.0, currX: 0.0, currY: 0.0, dx: 0.0, dy: 0.0 };
 let player;
@@ -155,7 +157,7 @@ class Player {
         this.sin.z = Math.sin(-this.rot.z * Math.PI / 180.0); this.cos.z = Math.cos(-this.rot.z * Math.PI / 180.0);
         
         this.speed = 3.0;
-        if(keys.shift) this.speed = 6.0;
+        if (keys.shift) this.speed = 6.0;
 
         let ax = 0.0;
         let az = 0.0;
@@ -240,10 +242,14 @@ class View extends Bitmap {
         //     new Vertex(new Vector3(1, 1, -5), 0x808080, new Vector2(1, 0)),
         //     new Vertex(new Vector3(1, -1, -2), 0xffffff, new Vector2(1, 1)));
         const s = 30.0;
+        let tex;
         for (let i = 0; i < 100; i++) {
-            this.drawCube(new Vector3(r.nextFloat() * s - s / 2.0, r.nextFloat() * s - s / 2.0, r.nextFloat() * s - s / 2.0), new Vector3(1, 1, 1), pepe, true);
+            if (i % 2 == 0) tex = textures.pepe;
+            else tex = textures.dulri;
+            this.drawCube(new Vector3(r.nextFloat() * s - s / 2.0, r.nextFloat() * s - s / 2.0, r.nextFloat() * s - s / 2.0), new Vector3(1, 1, 1), tex, true);
         }
         this.drawPoint(new Vertex(new Vector3(0, 0, -1), 0xff00ff));
+        this.drawLine(new Vertex(new Vector3(-3, -3, -3), 0xff0000), new Vertex(new Vector3(5, 2, -8), 0x00ff00));
     }
     drawPoint(v) {
         v.pos = this.playerTransform(v.pos);
@@ -342,9 +348,7 @@ class View extends Bitmap {
         return { x0: x0, y0: y0, x1: x1, y1: y1 };
     }
     drawTriangle(v0, v1, v2, tex) {
-        if (tex == undefined) {
-                tex = defaultTex0;;
-            }
+        if (tex == undefined) tex = textures.sample0;
         v0.pos = this.playerTransform(v0.pos);
         v1.pos = this.playerTransform(v1.pos);
         v2.pos = this.playerTransform(v2.pos);
@@ -504,17 +508,27 @@ function start() {
 
 function init() {
     cvs = document.getElementById("canvas");
-    const image = new Image();
-    image.src = "imgs/spritesheet.png";
-    image.crossOrigin = "Anonymous";
-    image.onload = () =>
-    {
-        // Loading sprite sheet.
-        gfx.drawImage(image, 0, 0);
-        pepe = gfx.getImageData(0, 0, spriteSheetSize, spriteSheetSize);
-        pepe = convertImageDataToBitmap(pepe, spriteSheetSize, spriteSheetSize);
-        loadedResources++;
+    
+    for (const key in textures) {
+        if (Object.hasOwnProperty.call(textures, key))
+            {
+                const imageURL = textures[key][0];
+                const imageWidth = textures[key][1];
+                const imageHeight = textures[key][2];
+                let image = new Image();
+                image.src = imageURL;
+                image.crossOrigin = "Anonymous";
+                image.onload = () => {
+                    // Loading textures.
+                    gfx.drawImage(image, 0, 0);
+                    image = gfx.getImageData(0, 0, imageWidth, imageHeight);
+                    image = convertImageDataToBitmap(image, imageWidth, imageHeight);
+                    textures[key] = image;
+                    loadedResources++;
+            }
+        }
     }
+
     cvs.setAttribute("width", WIDTH + "px");
     cvs.setAttribute("height", HEIGHT + "px");
     gfx = cvs.getContext("2d");
@@ -572,15 +586,17 @@ function init() {
     for (let i = 0; i < WIDTH * HEIGHT; i++) 
         view.pixels[i] = Math.random() * 0xffffff;
     
-    defaultTex0 = new Bitmap(64, 64);
+    let sample = new Bitmap(64, 64);
     for (let i = 0; i < 64 * 64; i++)
     {
         const x = i % 64;
         const y = int(i / 64);
-        defaultTex0.pixels[i] = (((x << 6) % 0xff) << 8) | (y << 6) % 0xff;
+        sample.pixels[i] = (((x << 6) % 0xff) << 8) | (y << 6) % 0xff;
     }
-    defaultTex1 = new Bitmap(64, 64);
-    defaultTex1.clear(0xff00ff);
+    textures["sample0"] = sample;
+    sample = new Bitmap(64, 64);
+    sample.clear(0xff00ff);
+    textures["sample1"] = sample;
 
     player = new Player();
 }
