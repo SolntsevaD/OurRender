@@ -300,7 +300,7 @@ class View extends Bitmap {
     }
     renderView() {
         for (let i = 0; i < this.zBuffer.length; i++)
-            this.zBuffer[i] = 10000;
+            this.zBuffer[i] = 100000;
 
         const r = new Random(123);
 
@@ -329,12 +329,15 @@ class View extends Bitmap {
         for (let i = 0; i < 100; i++) {
             if (i % 2 == 0) tex = textures.pepe;
             else tex = textures.dulri;
-            const pos = new Vector3(r.nextFloat() * s - s / 2.0, r.nextFloat() * s - s / 2.0, r.nextFloat() * s - s / 2.0);
-            this.drawCube(matrix.mulVector(pos), new Vector3(1, 1, 1), tex, false, true);
 
-            this.drawSkyBox(textures.skybox);
+            const pos = new Vector3(r.nextFloat() * s - s / 2.0, r.nextFloat() * s - s / 2.0, r.nextFloat() * s - s / 2.0);
+
+            this.drawCube(pos, new Vector3(1, 1, 1), tex, false, true);
         }
+
+        this.drawPoint(new Vertex(new Vector3(0, 0, 0), 0xff00ff));
         
+        this.drawSkyBox(time / 100.0);
     }
     drawPoint(v) {
         v.pos = this.playerTransform(v.pos);
@@ -577,10 +580,38 @@ class View extends Bitmap {
         this.drawTriangle(new Vertex(p100, 0xffffff, t01), new Vertex(p001, 0xffffff, t10), new Vertex(p000, 0xffffff, t11), tex);
     }
 
-    drawSkyBox(tex)
+    drawSkyBox(rotation)
     {
-        renderFlag = SET_Z_9999 | RENDER_CCW;
-        this.drawCube(player.pos, new Vector3(1, 1, 1), tex, true);
+        renderFlag = SET_Z_9999;
+
+        let size = new Vector3(1000, 1000, 1000);
+        let pos = player.pos.sub(new Vector3(size.x / 2.0, size.y / 2.0, -size.z / 2.0));
+        rotation = new Matrix4().rotate(0, rotation, 0);
+        const p000 = rotation.mulVector(new Vector3(pos.x, pos.y, pos.z));
+        const p100 = rotation.mulVector(new Vector3(pos.x + size.x, pos.y, pos.z));
+        const p110 = rotation.mulVector(new Vector3(pos.x + size.x, pos.y + size.y, pos.z));
+        const p010 = rotation.mulVector(new Vector3(pos.x, pos.y + size.y, pos.z));
+        const p001 = rotation.mulVector(new Vector3(pos.x, pos.y, pos.z - size.z));
+        const p101 = rotation.mulVector(new Vector3(pos.x + size.x, pos.y, pos.z - size.z));
+        const p111 = rotation.mulVector(new Vector3(pos.x + size.x, pos.y + size.y, pos.z - size.z));
+        const p011 = rotation.mulVector(new Vector3(pos.x, pos.y + size.y, pos.z - size.z));
+        const t00 = new Vector2(0, 0);
+        const t10 = new Vector2(1, 0);
+        const t11 = new Vector2(1, 1);
+        const t01 = new Vector2(0, 1);
+        this.drawTriangle(new Vertex(p001, 0xffffff, t01), new Vertex(p011, 0xffffff, t00), new Vertex(p111, 0xffffff, t10), textures.skybox_front);
+        this.drawTriangle(new Vertex(p001, 0xffffff, t01), new Vertex(p111, 0xffffff, t10), new Vertex(p101, 0xffffff, t11), textures.skybox_front);
+        this.drawTriangle(new Vertex(p101, 0xffffff, t01), new Vertex(p111, 0xffffff, t00), new Vertex(p110, 0xffffff, t10), textures.skybox_right);
+        this.drawTriangle(new Vertex(p101, 0xffffff, t01), new Vertex(p110, 0xffffff, t10), new Vertex(p100, 0xffffff, t11), textures.skybox_right);
+        this.drawTriangle(new Vertex(p000, 0xffffff, t01), new Vertex(p010, 0xffffff, t00), new Vertex(p011, 0xffffff, t10), textures.skybox_left);
+        this.drawTriangle(new Vertex(p000, 0xffffff, t01), new Vertex(p011, 0xffffff, t10), new Vertex(p001, 0xffffff, t11), textures.skybox_left);
+        this.drawTriangle(new Vertex(p100, 0xffffff, t01), new Vertex(p110, 0xffffff, t00), new Vertex(p010, 0xffffff, t10), textures.skybox_back);
+        this.drawTriangle(new Vertex(p100, 0xffffff, t01), new Vertex(p010, 0xffffff, t10), new Vertex(p000, 0xffffff, t11), textures.skybox_back);
+        this.drawTriangle(new Vertex(p011, 0xffffff, t01), new Vertex(p010, 0xffffff, t00), new Vertex(p110, 0xffffff, t10), textures.skybox_top);
+        this.drawTriangle(new Vertex(p011, 0xffffff, t01), new Vertex(p110, 0xffffff, t10), new Vertex(p111, 0xffffff, t11), textures.skybox_top);
+        this.drawTriangle(new Vertex(p000, 0xffffff, t01), new Vertex(p001, 0xffffff, t00), new Vertex(p101, 0xffffff, t10), textures.skybox_bottom);
+        this.drawTriangle(new Vertex(p000, 0xffffff, t01), new Vertex(p101, 0xffffff, t10), new Vertex(p100, 0xffffff, t11), textures.skybox_bottom);
+        
         renderFlag = 0;
     }
 
@@ -609,6 +640,7 @@ function start() {
 
 function init() {
     cvs = document.getElementById("canvas");
+    gfx = cvs.getContext("2d");
     
     for (const key in textures) {
         if (Object.hasOwnProperty.call(textures, key))
@@ -621,8 +653,30 @@ function init() {
                 image.src = imageURL;
                 image.crossOrigin = "Anonymous";
                 image.onload = () => {
+                    cvs.setAttribute("width", imageWidth + "px");
+                    cvs.setAttribute("height", imageHeight + "px");
+
                     // Loading textures.
-                    gfx.drawImage(image, 0, 0);
+                    gfx.drawImage(image, 0, 0, imageWidth, imageHeight);
+                if (key == "skybox")
+                {
+                    const size = int(imageWidth / 4);
+                    let top = gfx.getImageData(size, 0, size, size);
+                    let bottom = gfx.getImageData(size, size * 2, size, size);
+                    let front = gfx.getImageData(size, size, size, size);
+                    let back = gfx.getImageData(size * 3, size, size, size);
+                    let right = gfx.getImageData(size * 2, size, size, size);
+                    let left = gfx.getImageData(0, size, size, size);
+                    textures["skybox_top"] = convertImageDataToBitmap(top, size, size);
+                    textures["skybox_bottom"] = convertImageDataToBitmap(bottom, size, size);
+                    textures["skybox_front"] = convertImageDataToBitmap(front, size, size);
+                    textures["skybox_back"] = convertImageDataToBitmap(back, size, size);
+                    textures["skybox_right"] = convertImageDataToBitmap(right, size, size);
+                    textures["skybox_left"] = convertImageDataToBitmap(left, size, size);
+                    loadedResources++;
+                    return;
+                }
+
                     image = gfx.getImageData(0, 0, imageWidth, imageHeight);
                     image = convertImageDataToBitmap(image, imageWidth, imageHeight);
                     textures[key] = image;
@@ -630,11 +684,6 @@ function init() {
             }
         }
     }
-
-    cvs.setAttribute("width", WIDTH + "px");
-    cvs.setAttribute("height", HEIGHT + "px");
-    gfx = cvs.getContext("2d");
-    gfx.font = "48px verdana";
 
     window.addEventListener('mousedown', (e) => {
       if (e.button != 0) return;
@@ -707,6 +756,14 @@ function run() {
     const currentTime = new Date().getTime();
     passedTime += currentTime - previousTime;
     previousTime = currentTime;
+
+    if (loadedResources == resourceReady && time == 0)
+        {
+            cvs.setAttribute("width", WIDTH * SCALE + "px");
+            cvs.setAttribute("height", HEIGHT * SCALE + "px");
+            gfx.font = "48px verdana";
+        }
+
     while (passedTime >= msPerFrame) {
       if (loadedResources == resourceReady && !pause ){
             update(passedTime / 1000.0);
