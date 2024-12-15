@@ -1,6 +1,6 @@
 let WIDTH = 800;
 let HEIGHT = WIDTH / 4 * 3;
-let SCALE = 8;
+let SCALE = 4;
 
 const spriteSheetSize = 512;
 let spritesheet;
@@ -134,7 +134,7 @@ class Vertex {
         else if (color == undefined) this.color = new Vector3(255, 0, 255);
         else this.color = color;
 
-        if(texCoord == undefined) this.texCoord = new Vector2(0, 0);
+        if (texCoord == undefined) this.texCoord = new Vector2(0, 0);
         else this.texCoord = texCoord;
     }
 }
@@ -208,8 +208,7 @@ class Bitmap {
     }
     clear(color)
     {
-        for (let i = 0; i < this.pixels.length; i++)
-        {
+        for (let i = 0; i < this.pixels.length; i++) {
             this.pixels[i] = color;
         }
     }
@@ -229,8 +228,14 @@ class View extends Bitmap {
 
         let r = new Random(123);
 
-        this.drawTriangle(new Vertex(-1, -1, -3, 0x808080), new Vertex(-1, 1, -3, 0x000000), new Vertex(1, 1, -3, 0x808080));
-        this.drawTriangle(new Vertex(-1, -1, -3, 0x808080), new Vertex(1, 1, -3, 0x808080), new Vertex(1, -1, -3, 0xffffff));
+        this.drawTriangle(
+            new Vertex(-1, -1, -3, 0x808080, new Vector2(0, 1)),
+            new Vertex(-1, 1, -3, 0x000000, new Vector2(0, 0)),
+            new Vertex(1, 1, -3, 0x808080, new Vector2(1, 0)), spritesheet);
+        this.drawTriangle(
+            new Vertex(-1, -1, -3, 0x808080, new Vector2(0, 1)),
+            new Vertex(1, 1, -3, 0x808080, new Vector2(1, 0)),
+            new Vertex(1, -1, -3, 0xffffff, new Vector2(1, 1)), spritesheet);
     }
     drawPoint(v) {
         let vp = this.playerTransform(v);
@@ -327,7 +332,11 @@ class View extends Bitmap {
         }
         return { x0: x0, y0: y0, x1: x1, y1: y1 };
     }
-    drawTriangle(v0, v1, v2) {
+    drawTriangle(v0, v1, v2, tex) {
+        if (tex == undefined) {
+                tex = new Bitmap(64, 64);
+                tex.clear(0xff00ff);
+            }
         let vp0 = this.playerTransform(v0);
         let vp1 = this.playerTransform(v1);
         let vp2 = this.playerTransform(v2);
@@ -373,7 +382,13 @@ class View extends Bitmap {
                     w2 /= area;
 
                     let z = 1.0 / (w0 / z0 + w1 / z1 + w2 / z2);
-                    let c = lerpAttribute(vp0.color, vp1.color, vp2.color, w0, w1, w2, z0, z1, z2, z);
+                    let t = lerpAttribute2(vp0.texCoord, vp1.texCoord, vp2.texCoord, w0, w1, w2, z0, z1, z2, z);
+                    // let c = lerpAttribute(vp0.color, vp1.color, vp2.color, w0, w1, w2, z0, z1, z2, z);
+                    let tx = Math.floor(tex.width * t.x);
+                    let ty = Math.floor(tex.height * t.y);
+                    if (tx >= tex.width) tx = tex.width - 1;
+                    if (ty >= tex.height) ty = tex.height - 1;
+                    let c = tex.pixels[tx + ty * tex.width];
                     this.renderPixel(new Vector3(x, y, z), c);
                 }
             }
@@ -398,7 +413,9 @@ class View extends Bitmap {
     }
     renderPixel(p, c) {
         if (!this.checkOutOfScreen(p) && p.z < this.zBuffer[p.x + (HEIGHT - 1 - p.y) * WIDTH]) {
-            this.pixels[p.x + (HEIGHT - 1 - p.y) * this.width] = converColor(c);
+            if (typeof c != "number")
+                c = convertColor(c);
+            this.pixels[p.x + (HEIGHT - 1 - p.y) * this.width] = c;
             this.zBuffer[p.x + (HEIGHT - 1 - p.y) * this.width] = p.z;
         }
     }
@@ -500,7 +517,7 @@ function run() {
                 frameCounter = 0;
             }
         }
-        else if(pause) {
+        else if (pause) {
             gfx.fillText("PAUSE", 4, 40);
         }
 
@@ -586,15 +603,24 @@ function lerpVector3(a, b, c, w0, w1, w2) {
     return new Vector3(wa.x + wb.x + wc.x, wa.y + wb.y + wc.y, wa.z + wb.z + wc.z);
 }
 
-function lerpAttribute(a, b, c, w0, w1, w2, z0, z1, z2, z) {
+function lerpAttribute2(a, b, c, w0, w1, w2, z0, z1, z2, z) {
     let wa = a.mul(w0 / z0 * z);
     let wb = b.mul(w1 / z1 * z);
     let wc = c.mul(w2 / z2 * z);
+    let res = new Vector2(wa.x + wb.x + wc.x, wa.y + wb.y + wc.y);
+    return res;
+}
+function lerpAttribute3(a, b, c, w0, w1, w2, z0, z1, z2, z) {
+    let wa = a.mul(w0 / z0 * z);
+    let wb = b.mul(w1 / z1 * z);
+    let wc = c.mul(w2 / z2 * z);
+
     let res = new Vector3(wa.x + wb.x + wc.x, wa.y + wb.y + wc.y, wa.z + wb.z + wc.z);
+
     return res;
 }
 
-function converColor(v) {
+function convertColor(v) {
     return (v.x << 16) | (v.y << 8) | v.z;
 }
 
