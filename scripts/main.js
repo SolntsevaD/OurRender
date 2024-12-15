@@ -184,28 +184,15 @@ class Matrix4
         const sinZ = Math.sin(z);
         const cosZ = Math.cos(z);
         let res = new Matrix4();
-        res.m00 = cosY * cosZ;                     
-        res.m10 = sinX * sinY * cosZ + cosX * sinZ;     
-        res.m20 = -cosX * sinY * cosZ + sinX * sinZ;    
-        res.m30 = 0;                                   
-        
-        res.m01 = -cosY * sinZ;
-        res.m11 = -sinX * sinY * sinZ + cosX * cosZ;
-        res.m21 = cosX * sinY * sinZ + sinX * cosZ;
-        res.m31 = 0;
 
-        res.m02 = sinY;
-        res.m12 = -sinX * cosY;
-        res.m22 = cosX * cosY;
-        res.m32 = 0;
+        res.m00 = cosY * cosZ; res.m01 = -cosY * sinZ; res.m02 = sinY; res.m03 = 0;
+        res.m10 = sinX * sinY * cosZ + cosX * sinZ; res.m11 = -sinX * sinY * sinZ + cosX * cosZ; res.m12 = -sinX * cosY; res.m13 = 0;
+        res.m20 = -cosX * sinY * cosZ + sinX * sinZ; res.m21 = cosX * sinY * sinZ + sinX * cosZ; res.m22 = cosX * cosY; res.m23 = 0;
+        res.m30 = 0; res.m31 = 0; res.m32 = 0; res.m33 = 1;
 
-        res.m03 = 0;
-        res.m13 = 0;
-        res.m23 = 0;
-        res.m33 = 1;
         return this.mulMatrix(res);
-
     }
+
     translate(x, y, z)
     {
         let res = new Matrix4();
@@ -237,14 +224,9 @@ class Player {
 
         this.pos = new Vector3(0.0, 0.0, 0.0);
         this.rot = new Vector3(0.0, 0.0, 0.0);
-        this.sin = new Vector3(0.0, 0.0, 0.0);
-        this.cos = new Vector3(0.0, 0.0, 0.0);
+        this.cameraTransform = new Matrix4();
     }
     update(delta) {
-        this.sin.x = Math.sin(-this.rot.x * Math.PI / 180.0); this.cos.x = Math.cos(-this.rot.x * Math.PI / 180.0);
-        this.sin.y = Math.sin(-this.rot.y * Math.PI / 180.0); this.cos.y = Math.cos(-this.rot.y * Math.PI / 180.0);
-        this.sin.z = Math.sin(-this.rot.z * Math.PI / 180.0); this.cos.z = Math.cos(-this.rot.z * Math.PI / 180.0);
-        
         this.speed = 3.0;
         if (keys.shift) this.speed = 6.0;
 
@@ -254,8 +236,10 @@ class Player {
         if (keys.right) ax++;
         if (keys.up) az--;
         if (keys.down) az++;
-        this.pos.x += (this.cos.y * ax + this.sin.y * az) * this.speed * delta;
-        this.pos.z += (-this.sin.y * ax + this.cos.y * az) * this.speed * delta;
+
+        this.pos.x += (Math.cos(-this.rot.y * Math.PI / 180.0) * ax + Math.sin(-this.rot.y * Math.PI / 180.0) * az) * this.speed * delta;
+        this.pos.z += (-Math.sin(-this.rot.y * Math.PI / 180.0) * ax + Math.cos(-this.rot.y * Math.PI / 180.0) * az) * this.speed * delta;
+
         if (keys.space) this.pos.y += this.speed * delta;
         if (keys.c) this.pos.y -= this.speed * delta;
         if (keys.q) this.rot.y -= this.rotSpeed * delta;
@@ -264,6 +248,10 @@ class Player {
             this.rot.y += mouse.dx * 0.1 * this.rotSpeed * delta;
             this.rot.x += mouse.dy * 0.1 * this.rotSpeed * delta;
         }
+
+        const radRot = this.rot.mul(-Math.PI / 180.0);
+        this.cameraTransform = new Matrix4().rotate(radRot.x, radRot.y, radRot.z);
+        this.cameraTransform = this.cameraTransform.translate(-this.pos.x, -this.pos.y, this.pos.z);
     }
 }
 
@@ -567,14 +555,7 @@ class View extends Bitmap {
     }
 
     playerTransform(pos) {
-        const ox = pos.x - player.pos.x;
-        const oy = pos.y - player.pos.y;
-        const oz = -pos.z + player.pos.z;
-      // Combined XYZ Rotation
-      const xx = ox * (+player.cos.y * player.cos.z) + oy * (-player.cos.y * player.sin.z) + oz * (+player.sin.y);
-      const yy = ox * (+player.sin.x * player.sin.y * player.cos.z + player.cos.x * player.sin.z) + oy * (-player.sin.x * player.sin.y * player.sin.z + player.cos.x * player.cos.z) + oz * (-player.sin.x * player.cos.y);
-      const zz = ox * (-player.cos.x * player.sin.y * player.cos.z + player.sin.x * player.sin.z) + oy * (+player.cos.x * player.sin.y * player.sin.z + player.sin.x * player.cos.z) + oz * (+player.cos.x * player.cos.y);
-        return new Vector3(xx, yy, zz);
+        return player.cameraTransform.mulVector(new Vector3(pos.x, pos.y, -pos.z));
     }
     convertIntoScreenSpace(p) {
         return new Vector3(xx, yy, zz);
@@ -817,5 +798,7 @@ function lerp3AttributeVec3(a, b, c, w0, w1, w2, z0, z1, z2, z) {
 function convertColor(v) {
     return (v.x << 16) | (v.y << 8) | v.z;
 }
+
+
 
 window.onload = start;
