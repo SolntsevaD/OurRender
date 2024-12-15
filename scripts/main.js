@@ -7,7 +7,7 @@ let textures =
 {
     pepe: ["imgs/pepe.png", 512, 512],
     dulri: ["imgs/dulri.png", 256, 256],
-    skybox: ["imgs/skybox.png", 256, 256],
+    skybox: ["imgs/skybox2.png", 1024, 768],
 };
 
 const resourceReady = Object.keys(textures).length;
@@ -686,16 +686,16 @@ function init() {
     }
 
     window.addEventListener('mousedown', (e) => {
-      if (e.button != 0) return;
+        if (e.button != 0) return;
 
-      mouse.down = true;
+        mouse.down = true;
     }, false);
     window.addEventListener("mouseup", (e) =>
-      {
-          if (e.button != 0) return;
-          mouse.down = false;
-      }, false);
-      window.addEventListener("keydown", (e) =>
+        {
+            if (e.button != 0) return;
+            mouse.down = false;
+        }, false);
+        window.addEventListener("keydown", (e) =>
         {
             if (e.key == "Escape")
                 pause = !pause;
@@ -765,7 +765,7 @@ function run() {
         }
 
     while (passedTime >= msPerFrame) {
-      if (loadedResources == resourceReady && !pause ){
+        if (loadedResources == resourceReady && !pause ){
             update(passedTime / 1000.0);
             render();
             time += passedTime / 1000.0;
